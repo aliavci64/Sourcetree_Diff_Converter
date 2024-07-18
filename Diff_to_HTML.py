@@ -4,13 +4,14 @@ import re
 import sys
 import html
 
+number_of_previous_rows = 3 #Her farklılık bloğundan önce ve sonra yazdırılacak satır sayısını ifade eder
 oneArgument = False #Sourcetree üzerinde seçilen argüman sayısını kontrol eden boolean ifade
 
 #bir git fonksiyonu olan diff fonksiyonunu kullanarak iki versiyon arasındaki farklılıkları tespit eder
 def get_git_diff(commit1, commit2, repo_path, file_name):
     try:
         result = subprocess.run(
-            ['git', '-C', repo_path, 'diff', '-U0', commit1, commit2, '--', file_name],
+            ['git', '-C', repo_path, 'diff', f'-U{number_of_previous_rows}', commit1, commit2, '--', file_name],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8'
         )
         return result.stdout
@@ -101,10 +102,9 @@ def write_diff_to_html(diffs, output_file):
                                 f.write(f'<tr><td></td><td class="added"><pre><span class="line-num">{new_line_num}</span> + {html.escape(line[1:])}</pre></td></tr>')
                                 new_line_num += 1
                             else:
-                                f.write(f'<tr><td><pre><span class="line-num">{old_line_num}</span> {html.escape(line)}</pre></td><td><pre><span class="line-num">{html.escape(new_line_num)}</span> {html.escape(line)}</pre></td></tr>')
+                                f.write(f'<tr><td><pre><span class="line-num">{old_line_num}</span> {html.escape(line)}</pre></td><td><pre><span class="line-num">{new_line_num}</span> {html.escape(line)}</pre></td></tr>')
                                 old_line_num += 1
                                 new_line_num += 1
-
                         f.write('</table>')
 
                 else: #İki commit seçildiyse
@@ -147,12 +147,11 @@ def write_diff_to_html(diffs, output_file):
                                 f.write(f'<tr><td></td><td class="added"><pre><span class="line-num">{new_line_num}</span> + {html.escape(line[1:])}</pre></td></tr>')
                                 new_line_num += 1
                             else:
-                                f.write(f'<tr><td><pre><span class="line-num">{old_line_num}</span> {html.escape(line)}</pre></td><td><pre><span class="line-num">{html.escape(new_line_num)}</span> {html.escape(line)}</pre></td></tr>')
+                                f.write(f'<tr><td><pre><span class="line-num">{old_line_num}</span> {html.escape(line)}</pre></td><td><pre><span class="line-num">{new_line_num}</span> {html.escape(line)}</pre></td></tr>')
                                 old_line_num += 1
                                 new_line_num += 1
 
                         f.write('</table>')
-
             f.write('</body></html>')
     except Exception as e:
         print(f"HTML dosyasına yazarken hata oluştu: {e}")
@@ -210,7 +209,7 @@ if __name__ == "__main__":
     print(f"Converted repo_path: {repo_path}")
     print(f"Converted output_dir: {output_dir}")
 
-    differences_dir = create_unique_output_dir(os.path.join(repo_path, "Differences"))
+    differences_dir = create_unique_output_dir(os.path.join(output_dir, "Differences"))
     output_file = os.path.join(differences_dir, "combined_diff.html")
 
     if commit2:
@@ -222,15 +221,26 @@ if __name__ == "__main__":
     for line in changed_files:
         status, file_name = line.split(maxsplit=1)
         if file_name.endswith('.c') or file_name.endswith('.h') or file_name.endswith('.py'):
-            if status == 'A':
-                file_content = get_file_content_at_commit(commit2, repo_path, file_name)
-                diffs.append({'diff': '', 'file_name': file_name, 'file_status': 'A', 'file_content': file_content})
-            elif status == 'D':
-                file_content = get_file_content_at_commit(commit1, repo_path, file_name)
-                diffs.append({'diff': '', 'file_name': file_name, 'file_status': 'D', 'file_content': file_content})
+            if commit2:
+                if status == 'A':
+                    file_content = get_file_content_at_commit(commit2, repo_path, file_name)
+                    diffs.append({'diff': '', 'file_name': file_name, 'file_status': 'A', 'file_content': file_content})
+                elif status == 'D':
+                    file_content = get_file_content_at_commit(commit1, repo_path, file_name)
+                    diffs.append({'diff': '', 'file_name': file_name, 'file_status': 'D', 'file_content': file_content})
+                else:
+                    diff = get_git_diff(commit1, commit2, repo_path, file_name)
+                    diffs.append({'diff': diff, 'file_name': file_name, 'file_status': '', 'file_content': ''})
             else:
-                diff = get_git_diff(commit1, commit2 if commit2 else commit1 + '^', repo_path, file_name)
-                diffs.append({'diff': diff, 'file_name': file_name, 'file_status': '', 'file_content': ''})
+                if status == 'A':
+                    file_content = get_file_content_at_commit(commit1, repo_path, file_name)
+                    diffs.append({'diff': '', 'file_name': file_name, 'file_status': 'A', 'file_content': file_content})
+                elif status == 'D':
+                    file_content = get_file_content_at_commit(commit1, repo_path, file_name)
+                    diffs.append({'diff': '', 'file_name': file_name, 'file_status': 'D', 'file_content': file_content})
+                else:
+                    diff = get_git_diff(commit1, commit1 + '^', repo_path, file_name)
+                    diffs.append({'diff': diff, 'file_name': file_name, 'file_status': '', 'file_content': ''})
 
     write_diff_to_html(diffs, output_file)
 
