@@ -55,7 +55,10 @@ To use this script in Sourcetree, you need to add the script to Sourcetree's cus
 2. Right-click and choose the custom action you created from the **'Custom Actions'** menu.
 3. The script will determine the differences if a single commit is selected, it will compare with the previous version; if two commits are selected, it will compare the differences between the two commits and save them as an HTML file in a folder named 'Differences'.
 
-## Libraries and Functions
+## Libraries, Functions and Variables
+
+### Variable {number_of_previous_rows}
+It is a global variable that specifies how many lines before printing the differences will start and how many lines will end. It is defined at the very beginning of the code file, under the libraries, and can be modified.
 
 ### os
 **Where Used**: **'create_unique_output_dir'** and functions like **'os.path.join'**, **'os.path.exists'**, **'os.makedirs'**.
